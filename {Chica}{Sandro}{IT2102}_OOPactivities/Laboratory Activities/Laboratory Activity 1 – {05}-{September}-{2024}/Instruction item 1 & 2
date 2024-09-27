@@ -1,0 +1,68 @@
+/* 
+ITEM 1
+Write a program that asks the user to enter the following:
+Values Data Type
+Year Integer
+Genre String
+Album String
+Title String
+Artist String
+
+Then, the entered values should be directly printed.
+
+Expected output:
+
+Enter the year: 2024
+Enter the genre: Pop
+Enter the album: Talaarawan EP
+Enter the song title: Na Na Nandito Lang
+Enter the artist: BINI
+-------------------
+SONG DETAILS
+-------------------
+Year Released: 2024
+Genre: Pop
+Album: Talaarawan EP
+Title: "Na Na Nandito Lang"
+Artist: BINI
+
+***********************************************************************************
+ITEM 2
+Write a program that asks the user for two characters, and will show the
+character with the greater value (Hint: Use the Math.max method for this),
+followed by the ASCII codes of each character.
+
+Expected output:
+
+Getting the Greater Value
+Enter first character: f
+Enter second character: A
+-----------------------------------------
+The character with greater value is: f
+-----------------------------------------
+Showing the ASCII Codes
+f: 102
+A: 65
+
+Note: Name your file as GettingGreater.java.
+
+For instance:
+Getting the Greater Value
+Enter first character: abc
+Enter second character: 123
+-----------------------------------------
+The character with greater value is: a
+-----------------------------------------
+Showing the ASCII Codes
+a: 97
+1:49
+
+Note: You will notice that the input of the user are three characters for each value, but the program only extracted the first character.
+
+It was made possible using the charAt(0) method. For example, look at the snippet below:
+
+System.out.print("Enter first character: ");
+char chichValue.next().charAt(0);
+System.out.println("Character is: " +ch1);
+
+Note: The charAt(0) function is responsible for getting the very first character from the input.
