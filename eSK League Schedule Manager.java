@@ -1,204 +1,196 @@
 import javax.swing.*;
+import javax.swing.text.DefaultCaret;
 import java.awt.*;
-import java.awt.event.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.util.ArrayList;
 
 public class RoundRobinManagerGUI {
-    private static class RoundRobinManager {
-        private ArrayList<String> teams;
+    private ArrayList<String> teams = new ArrayList<>();
+    private JFrame frame;
+    private JTextArea displayText;
+    private JLabel teamListLabel;
+    private JTextField teamEntry, updateIndexEntry, updateNameEntry, deleteIndexEntry;
 
-        public RoundRobinManager() {
-            teams = new ArrayList<>();
-        }
-
-        public String addTeam(String teamName) {
-            if (teamName != null && !teamName.isEmpty() && !teams.contains(teamName)) {
-                teams.add(teamName);
-                return "Team \"" + teamName + "\" added successfully!";
-            }
-            return "Team \"" + teamName + "\" already exists or invalid name.";
-        }
-
-        public String updateTeam(int index, String newName) {
-            if (index >= 0 && index < teams.size() && newName != null && !newName.isEmpty()) {
-                String oldName = teams.get(index);
-                teams.set(index, newName);
-                return "Team \"" + oldName + "\" updated to \"" + newName + "\".";
-            }
-            return "Invalid index or name.";
-        }
-
-        public String deleteTeam(int index) {
-            if (index >= 0 && index < teams.size()) {
-                String removedTeam = teams.remove(index);
-                return "Team \"" + removedTeam + "\" deleted successfully!";
-            }
-            return "Invalid index.";
-        }
-
-        public String generateSchedule() {
-            if (teams.size() < 3) {
-                return "Not enough teams to generate a schedule. Minimum 3 teams required.";
-            }
-            if (teams.size() > 10) {
-                return "Too many teams. Maximum 10 teams allowed.";
-            }
-
-            ArrayList<String> schedule = new ArrayList<>();
-            ArrayList<String> tempTeams = new ArrayList<>(teams);
-            if (tempTeams.size() % 2 != 0) {
-                tempTeams.add("Bye");
-            }
-
-            int numRounds = tempTeams.size() - 1;
-            int numMatchesPerRound = tempTeams.size() / 2;
-
-            for (int round = 0; round < numRounds; round++) {
-                StringBuilder roundMatches = new StringBuilder("Round " + (round + 1) + ":\n");
-                for (int match = 0; match < numMatchesPerRound; match++) {
-                    String team1 = tempTeams.get(match);
-                    String team2 = tempTeams.get(tempTeams.size() - match - 1);
-                    if (!team1.equals("Bye") && !team2.equals("Bye")) {
-                        roundMatches.append(team1).append(" vs ").append(team2).append("\n");
-                    }
-                }
-                schedule.add(roundMatches.toString());
-                tempTeams.add(1, tempTeams.remove(tempTeams.size() - 1)); // Rotate teams
-            }
-
-            teams = new ArrayList<>(teams.subList(0, teams.size() - (tempTeams.contains("Bye") ? 1 : 0))); // Remove
-                                                                                                           // dummy team
-                                                                                                           // if added
-            return String.join("\n\n", schedule);
-        }
-
-        public ArrayList<String> getTeams() {
-            return teams;
-        }
-    }
-
-    public static void main(String[] args) {
-        RoundRobinManager manager = new RoundRobinManager();
-
-        // JFrame setup
-        JFrame frame = new JFrame("eSK-League Schedule Manager");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    public RoundRobinManagerGUI() {
+        // Initialize the main frame
+        frame = new JFrame("eSK-League Schedule Manager");
         frame.setSize(600, 600);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
 
         // Header Section
-        JPanel headerPanel = new JPanel(new FlowLayout());
-        headerPanel.add(new JLabel("e"));
-        headerPanel.add(new JLabel("S", JLabel.CENTER) {
-            {
-                setForeground(Color.BLUE);
-            }
-        });
-        headerPanel.add(new JLabel("K", JLabel.CENTER) {
-            {
-                setForeground(Color.RED);
-            }
-        });
-        headerPanel.add(new JLabel("-League Schedule Manager"));
+        JPanel headerPanel = new JPanel();
+        JLabel headerText = new JLabel("e");
+        headerText.setFont(new Font("Arial", Font.BOLD, 18));
+        headerText.setForeground(Color.BLACK);
+
+        JLabel headerTextS = new JLabel("S");
+        headerTextS.setFont(new Font("Arial", Font.BOLD, 18));
+        headerTextS.setForeground(Color.BLUE);
+
+        JLabel headerTextK = new JLabel("K");
+        headerTextK.setFont(new Font("Arial", Font.BOLD, 18));
+        headerTextK.setForeground(Color.RED);
+
+        JLabel headerTextRest = new JLabel("-League Schedule Manager");
+        headerTextRest.setFont(new Font("Arial", Font.BOLD, 18));
+        headerTextRest.setForeground(Color.BLACK);
+
+        headerPanel.add(headerText);
+        headerPanel.add(headerTextS);
+        headerPanel.add(headerTextK);
+        headerPanel.add(headerTextRest);
         frame.add(headerPanel, BorderLayout.NORTH);
+
+        // Center Panel for Inputs and Buttons
+        JPanel centerPanel = new JPanel();
+        centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
 
         // Add Team Section
         JPanel addPanel = new JPanel();
-        JTextField teamField = new JTextField(20);
+        teamEntry = new JTextField(20);
         JButton addButton = new JButton("Add Team");
-        addButton.addActionListener(e -> {
-            String teamName = teamField.getText();
-            String message = manager.addTeam(teamName);
-            showMessage(frame, message);
-            updateTeamList(frame, manager.getTeams());
-            teamField.setText("");
-        });
-        addPanel.add(teamField);
+        addButton.addActionListener(e -> addTeam());
+        addPanel.add(teamEntry);
         addPanel.add(addButton);
-        frame.add(addPanel, BorderLayout.CENTER);
+        centerPanel.add(addPanel);
 
         // Update Team Section
         JPanel updatePanel = new JPanel();
-        JTextField updateIndexField = new JTextField(5);
-        JTextField updateNameField = new JTextField(15);
+        updateIndexEntry = new JTextField("Index", 5);
+        updateNameEntry = new JTextField("New Name", 15);
         JButton updateButton = new JButton("Update Team");
-        updateButton.addActionListener(e -> {
-            try {
-                int index = Integer.parseInt(updateIndexField.getText()) - 1;
-                String newName = updateNameField.getText();
-                String message = manager.updateTeam(index, newName);
-                showMessage(frame, message);
-                updateTeamList(frame, manager.getTeams());
-            } catch (NumberFormatException ex) {
-                showMessage(frame, "Invalid index. Please enter a valid number.", true);
-            }
-        });
-        updatePanel.add(updateIndexField);
-        updatePanel.add(updateNameField);
+        updateButton.addActionListener(e -> updateTeam());
+        updatePanel.add(updateIndexEntry);
+        updatePanel.add(updateNameEntry);
         updatePanel.add(updateButton);
-        frame.add(updatePanel, BorderLayout.SOUTH);
+        centerPanel.add(updatePanel);
 
         // Delete Team Section
         JPanel deletePanel = new JPanel();
-        JTextField deleteIndexField = new JTextField(5);
+        deleteIndexEntry = new JTextField(5);
         JButton deleteButton = new JButton("Delete Team");
-        deleteButton.addActionListener(e -> {
-            try {
-                int index = Integer.parseInt(deleteIndexField.getText()) - 1;
-                String message = manager.deleteTeam(index);
-                showMessage(frame, message);
-                updateTeamList(frame, manager.getTeams());
-            } catch (NumberFormatException ex) {
-                showMessage(frame, "Invalid index. Please enter a valid number.", true);
-            }
-        });
-        deletePanel.add(deleteIndexField);
+        deleteButton.addActionListener(e -> deleteTeam());
+        deletePanel.add(deleteIndexEntry);
         deletePanel.add(deleteButton);
-        frame.add(deletePanel, BorderLayout.EAST);
+        centerPanel.add(deletePanel);
 
-        // Generate Schedule Section
-        JPanel schedulePanel = new JPanel();
+        // Generate Schedule Button
         JButton generateButton = new JButton("Generate Schedule");
-        generateButton.addActionListener(e -> {
-            String schedule = manager.generateSchedule();
-            if (schedule.contains("Not enough teams") || schedule.contains("Too many teams")) {
-                showMessage(frame, schedule, true);
-            } else {
-                showMessage(frame, schedule);
-            }
-        });
-        schedulePanel.add(generateButton);
-        frame.add(schedulePanel, BorderLayout.WEST);
+        generateButton.addActionListener(e -> generateSchedule());
+        centerPanel.add(generateButton);
 
-        // Text Area for Team List
-        JTextArea teamListArea = new JTextArea(10, 50);
-        teamListArea.setEditable(false);
-        JScrollPane scrollPane = new JScrollPane(teamListArea);
-        frame.add(scrollPane, BorderLayout.CENTER);
+        // Team List Label
+        teamListLabel = new JLabel();
+        teamListLabel.setVerticalAlignment(SwingConstants.TOP);
+        centerPanel.add(teamListLabel);
 
-        // Display frame
+        frame.add(centerPanel, BorderLayout.CENTER);
+
+        // Scrollable Display Text
+        displayText = new JTextArea(15, 50);
+        displayText.setEditable(false);
+        displayText.setLineWrap(true);
+        displayText.setWrapStyleWord(true);
+        JScrollPane scrollPane = new JScrollPane(displayText);
+        frame.add(scrollPane, BorderLayout.SOUTH);
+
         frame.setVisible(true);
-
-        // Update the team list display
-        updateTeamList(frame, manager.getTeams());
     }
 
-    private static void showMessage(JFrame frame, String message) {
-        showMessage(frame, message, false);
+    private void addTeam() {
+        String teamName = teamEntry.getText().trim();
+        if (!teamName.isEmpty() && !teams.contains(teamName)) {
+            teams.add(teamName);
+            showMessage("Team \"" + teamName + "\" added successfully!", false);
+            updateTeamList();
+        } else {
+            showMessage("Team \"" + teamName + "\" already exists or invalid name.", true);
+        }
+        teamEntry.setText("");
     }
 
-    private static void showMessage(JFrame frame, String message, boolean isError) {
-        JOptionPane.showMessageDialog(frame, message, isError ? "Error" : "Info",
-                isError ? JOptionPane.ERROR_MESSAGE : JOptionPane.INFORMATION_MESSAGE);
+    private void updateTeam() {
+        try {
+            int index = Integer.parseInt(updateIndexEntry.getText().trim()) - 1;
+            String newName = updateNameEntry.getText().trim();
+            if (index >= 0 && index < teams.size() && !newName.isEmpty()) {
+                String oldName = teams.get(index);
+                teams.set(index, newName);
+                showMessage("Team \"" + oldName + "\" updated to \"" + newName + "\".", false);
+                updateTeamList();
+            } else {
+                showMessage("Invalid index or name.", true);
+            }
+        } catch (NumberFormatException e) {
+            showMessage("Invalid index. Please enter a valid number.", true);
+        }
     }
 
-    private static void updateTeamList(JFrame frame, ArrayList<String> teams) {
-        JTextArea teamListArea = (JTextArea) ((JScrollPane) frame.getContentPane().getComponent(2)).getViewport()
-                .getView();
+    private void deleteTeam() {
+        try {
+            int index = Integer.parseInt(deleteIndexEntry.getText().trim()) - 1;
+            if (index >= 0 && index < teams.size()) {
+                String removedTeam = teams.remove(index);
+                showMessage("Team \"" + removedTeam + "\" deleted successfully!", false);
+                updateTeamList();
+            } else {
+                showMessage("Invalid index.", true);
+            }
+        } catch (NumberFormatException e) {
+            showMessage("Invalid index. Please enter a valid number.", true);
+        }
+    }
+
+    private void generateSchedule() {
+        if (teams.size() < 3) {
+            showMessage("Not enough teams to generate a schedule. Minimum 3 teams required.", true);
+            return;
+        }
+        if (teams.size() > 10) {
+            showMessage("Too many teams. Maximum 10 teams allowed.", true);
+            return;
+        }
+
+        ArrayList<String> tempTeams = new ArrayList<>(teams);
+        if (tempTeams.size() % 2 != 0) {
+            tempTeams.add("Bye");
+        }
+
+        StringBuilder schedule = new StringBuilder();
+        int numRounds = tempTeams.size() - 1;
+        int numMatchesPerRound = tempTeams.size() / 2;
+
+        for (int round = 0; round < numRounds; round++) {
+            schedule.append("Round ").append(round + 1).append(":\n");
+            for (int match = 0; match < numMatchesPerRound; match++) {
+                String team1 = tempTeams.get(match);
+                String team2 = tempTeams.get(tempTeams.size() - 1 - match);
+                if (!team1.equals("Bye") && !team2.equals("Bye")) {
+                    schedule.append(team1).append(" vs ").append(team2).append("\n");
+                }
+            }
+            schedule.append("\n");
+            tempTeams.add(1, tempTeams.remove(tempTeams.size() - 1));
+        }
+
+        displayText.setText(schedule.toString());
+    }
+
+    private void updateTeamList() {
         StringBuilder teamList = new StringBuilder();
         for (int i = 0; i < teams.size(); i++) {
-            teamList.append((i + 1)).append(". ").append(teams.get(i)).append("\n");
+            teamList.append(i + 1).append(". ").append(teams.get(i)).append("\n");
         }
-        teamListArea.setText(teamList.toString());
+        teamListLabel.setText("<html>" + teamList.toString().replace("\n", "<br>") + "</html>");
+    }
+
+    private void showMessage(String message, boolean isError) {
+        JOptionPane.showMessageDialog(frame, message, isError ? "Error" : "Success", isError ? JOptionPane.ERROR_MESSAGE : JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(RoundRobinManagerGUI::new);
     }
 }
